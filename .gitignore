@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+.next/
+out/
+.turbo/
+
+# env
+.env
+.env.*
+!.env.example
+
+# agent
+agent/bin/
+
+# ai
+ai/.venv/
+ai/.pytest_cache/
+__pycache__/
+*.pyc
+
+# misc
+*.log
+.DS_Store
+coverage/

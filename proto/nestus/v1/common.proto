@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package nestus.v1;
+
+// Shared message types for the NESTUS agent protocol.
+
+message Empty {}
+
+message KeyValue {
+  string key = 1;
+  string value = 2;
+}

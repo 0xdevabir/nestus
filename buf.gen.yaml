@@ -1,0 +1,22 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/0xdevabir/nestus/agent/gen
+plugins:
+  # Go
+  - remote: buf.build/protocolbuffers/go
+    out: agent/gen
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go
+    out: agent/gen
+    opt: paths=source_relative
+  # TypeScript (ts-proto)
+  - remote: buf.build/community/stephenh-ts-proto
+    out: packages/proto-ts/src/gen
+    opt:
+      - outputServices=grpc-js
+      - esModuleInterop=true
+      - useDate=true
+      - oneof=unions

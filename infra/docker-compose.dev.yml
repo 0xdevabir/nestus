@@ -1,0 +1,45 @@
+name: nestus-dev
+
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg17
+    container_name: nestus-postgres
+    environment:
+      POSTGRES_USER: nestus
+      POSTGRES_PASSWORD: nestus
+      POSTGRES_DB: nestus
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nestus -d nestus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - nestus-dev
+
+  redis:
+    image: redis:7-alpine
+    container_name: nestus-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - nestus-dev
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  nestus-dev:
+    name: nestus-dev
