@@ -1,0 +1,197 @@
+syntax = "proto3";
+
+package nestus.v1;
+
+option go_package = "github.com/0xdevabir/nestus/agent/gen/nestus/v1;nestusv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+service AgentGateway {
+  rpc Enroll(EnrollRequest) returns (EnrollResponse);
+  rpc Connect(stream AgentMessage) returns (stream ControlMessage); // auth via metadata
+}
+
+message HostFacts {
+  string hostname = 1;
+  string os = 2;
+  string platform = 3;
+  string platform_version = 4;
+  string kernel = 5;
+  string arch = 6;
+  int32 cpu_cores = 7;
+  string cpu_model = 8;
+  uint64 mem_total_bytes = 9;
+  uint64 disk_total_bytes = 10;
+  string machine_id = 11;
+  repeated string ip_addresses = 12;
+  string public_ip = 13;
+  string docker_version = 14;
+  string agent_version = 15;
+  string mode = 16; // "docker" | "k8s"
+}
+
+message EnrollRequest {
+  string enrollment_token = 1;
+  HostFacts facts = 2;
+}
+
+message EnrollResponse {
+  string agent_id = 1;
+  string agent_secret = 2;
+  string server_id = 3;
+}
+
+message AgentMessage {
+  string msg_id = 1;
+  google.protobuf.Timestamp sent_at = 2;
+  oneof payload {
+    Hello hello = 10;
+    Heartbeat heartbeat = 11;
+    ContainerSnapshot containers = 12;
+    CommandAck command_ack = 13;
+    CommandLog command_log = 14;
+    CommandResult command_result = 15;
+    MetricsBatch metrics = 20;
+    // reserved for later phases:
+    // LogBatch logs = 21;          (phase 7)
+    // ContainerEvent container_event = 22; (phase 8)
+  }
+}
+
+message ControlMessage {
+  string msg_id = 1;
+  oneof payload {
+    HelloAck hello_ack = 10;
+    Command command = 11;
+    ConfigUpdate config = 12;
+    Ping ping = 13;
+  }
+}
+
+message Hello {
+  HostFacts facts = 1;
+  repeated string supported_commands = 2;
+}
+
+message HelloAck {
+  string server_id = 1;
+  AgentConfig config = 2;
+}
+
+message Heartbeat {
+  double uptime_seconds = 1;
+}
+
+message Ping {}
+
+message AgentConfig {
+  int32 heartbeat_interval_sec = 1;
+  int32 metrics_interval_sec = 2;
+  int32 container_snapshot_interval_sec = 3;
+  repeated string allowed_commands = 4;
+  google.protobuf.Struct extra = 5;
+}
+
+message ConfigUpdate {
+  AgentConfig config = 1;
+}
+
+message ContainerInfo {
+  string id = 1;
+  string name = 2;
+  string image = 3;
+  string state = 4;
+  string status = 5;
+  string health = 6;
+  int64 created_unix = 7;
+  int32 restart_count = 8;
+  map<string, string> labels = 9;
+  repeated string ports = 10;
+  repeated string networks = 11;
+  string ip_address = 12;
+}
+
+message ContainerSnapshot {
+  repeated ContainerInfo containers = 1;
+}
+
+message Command {
+  string command_id = 1; // idempotency key
+  string type = 2;       // e.g. "docker.restart" — must be in allowlist
+  google.protobuf.Struct params = 3;
+  int32 timeout_sec = 4;
+  string signature = 5; // phase 10 (ed25519); empty until then
+}
+
+message CommandAck {
+  string command_id = 1;
+  bool accepted = 2;
+  string reason = 3;
+}
+
+message CommandLog {
+  string command_id = 1;
+  string stream = 2;
+  string line = 3;
+  google.protobuf.Timestamp ts = 4;
+}
+
+message CommandResult {
+  string command_id = 1;
+  bool success = 2;
+  string error = 3;
+  google.protobuf.Struct output = 4;
+  int64 duration_ms = 5;
+}
+
+message DiskUsage {
+  string mount = 1;
+  string device = 2;
+  string fstype = 3;
+  uint64 used = 4;
+  uint64 total = 5;
+  double inodes_used_pct = 6;
+}
+
+message HostMetricPoint {
+  google.protobuf.Timestamp ts = 1;
+  double cpu_pct = 2;
+  repeated double cpu_per_core = 3;
+  double load1 = 4;
+  double load5 = 5;
+  double load15 = 6;
+  uint64 mem_used = 7;
+  uint64 mem_total = 8;
+  uint64 mem_available = 9;
+  uint64 swap_used = 10;
+  uint64 swap_total = 11;
+  double net_rx_bps = 12;
+  double net_tx_bps = 13;
+  double disk_read_bps = 14;
+  double disk_write_bps = 15;
+  uint32 process_count = 16;
+  double uptime_sec = 17;
+  uint32 tcp_conns = 18;
+  repeated DiskUsage disks = 19;
+}
+
+message ContainerMetricPoint {
+  google.protobuf.Timestamp ts = 1;
+  string container_id = 2;
+  string name = 3;
+  double cpu_pct = 4;
+  uint64 mem_used = 5;
+  uint64 mem_limit = 6;
+  double net_rx_bps = 7;
+  double net_tx_bps = 8;
+  double blk_read_bps = 9;
+  double blk_write_bps = 10;
+  uint32 pids = 11;
+}
+
+message MetricsBatch {
+  repeated HostMetricPoint host = 1;
+  repeated ContainerMetricPoint containers = 2;
+  bool replayed = 3;
+}

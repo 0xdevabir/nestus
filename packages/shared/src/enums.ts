@@ -7,7 +7,7 @@
 export enum Role {
   OWNER = 'OWNER',
   ADMIN = 'ADMIN',
-  MEMBER = 'MEMBER',
+  OPERATOR = 'OPERATOR',
   VIEWER = 'VIEWER',
 }
 
@@ -27,4 +27,16 @@ export enum ActorType {
   SYSTEM = 'SYSTEM',
   AI = 'AI',
   POLICY = 'POLICY',
+}
+
+/** Lifecycle of an agent command. */
+export enum CommandStatus {
+  QUEUED = 'QUEUED',
+  SENT = 'SENT',
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
+  RUNNING = 'RUNNING',
+  SUCCEEDED = 'SUCCEEDED',
+  FAILED = 'FAILED',
+  TIMED_OUT = 'TIMED_OUT',
 }

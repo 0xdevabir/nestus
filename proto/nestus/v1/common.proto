@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nestus.v1;
 
+option go_package = "github.com/0xdevabir/nestus/agent/gen/nestus/v1;nestusv1";
+
 // Shared message types for the NESTUS agent protocol.
 
 message Empty {}

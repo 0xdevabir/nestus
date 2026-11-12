@@ -25,3 +25,7 @@ __pycache__/
 *.log
 .DS_Store
 coverage/
+
+# package manager store
+.pnpm-store/
+node_modules.clean

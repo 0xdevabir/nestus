@@ -11,15 +11,9 @@ import (
 
 // Setup configures zerolog and returns the root logger.
 func Setup() zerolog.Logger {
-	out := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
-	if !isTTY(os.Stderr) {
-		out = zerolog.ConsoleWriter{} // zero value never used; JSON path below
-	}
-
 	if isTTY(os.Stderr) {
-		return zerolog.New(zerolog.New(os.Stderr).With().Timestamp().Logger()).
-			Output(out).
-			With().Timestamp().Logger()
+		out := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
+		return zerolog.New(out).With().Timestamp().Logger()
 	}
 	return zerolog.New(os.Stderr).With().Timestamp().Logger()
 }

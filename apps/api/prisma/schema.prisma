@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum ActorType {
+  USER
+  API_KEY
+  AGENT
+  SYSTEM
+  AI
+  POLICY
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  name          String
+  passwordHash  String?
+  avatarUrl     String?
+  githubId      String?      @unique
+  totpSecretEnc String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  memberships   Membership[]
+  sessions      Session[]
+}
+
+model Organization {
+  id           String       @id @default(cuid())
+  name         String
+  slug         String       @unique
+  autonomyMode String       @default("SUGGEST")
+  createdAt    DateTime     @default(now())
+  memberships  Membership[]
+  invitations  Invitation[]
+  apiKeys      ApiKey[]
+  auditLogs    AuditLog[]
+  servers      Server[]
+}
+
+model Membership {
+  id        String       @id @default(cuid())
+  userId    String
+  orgId     String
+  role      Role
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+}
+
+model Invitation {
+  id          String       @id @default(cuid())
+  orgId       String
+  email       String
+  role        Role
+  tokenHash   String       @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  familyId         String
+  userAgent        String?
+  ip               String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model ApiKey {
+  id          String       @id @default(cuid())
+  orgId       String
+  name        String
+  prefix      String
+  keyHash     String       @unique
+  permissions String[]
+  createdById String
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String        @id @default(cuid())
+  orgId      String?
+  actorType  ActorType
+  actorId    String?
+  actorLabel String?
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime      @default(now())
+  org        Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@index([targetType, targetId])
+}
+
+enum ServerStatus {
+  PENDING
+  ONLINE
+  OFFLINE
+  DEGRADED
+}
+
+enum CommandStatus {
+  QUEUED
+  SENT
+  ACCEPTED
+  REJECTED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  TIMED_OUT
+}
+
+model Server {
+  id              String         @id @default(cuid())
+  orgId           String
+  name            String
+  status          ServerStatus   @default(PENDING)
+  hostname        String?
+  os              String?
+  platform        String?
+  kernel          String?
+  arch            String?
+  cpuCores        Int?
+  cpuModel        String?
+  memTotalBytes   BigInt?
+  diskTotalBytes  BigInt?
+  publicIp        String?
+  privateIps      String[]
+  dockerVersion   String?
+  agentVersion    String?
+  mode            String         @default("docker")
+  tags            String[]
+  lastSeenAt      DateTime?
+  createdAt       DateTime       @default(now())
+  org             Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  agent           ServerAgent?
+  containers      Container[]
+  commands        AgentCommand[]
+  enrollmentTokens EnrollmentToken[]
+
+  @@index([orgId])
+}
+
+model ServerAgent {
+  id               String    @id @default(cuid())
+  serverId         String    @unique
+  secretHash       String
+  machineId        String?
+  connectedAt      DateTime?
+  disconnectedAt   DateTime?
+  gatewayInstance  String?
+  createdAt        DateTime  @default(now())
+  server           Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+}
+
+model EnrollmentToken {
+  id          String    @id @default(cuid())
+  orgId       String
+  serverId    String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  server      Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+}
+
+model Container {
+  id           String   @id @default(cuid())
+  serverId     String
+  dockerId     String
+  name         String
+  image        String
+  state        String
+  status       String
+  health       String?
+  restartCount Int      @default(0)
+  labels       Json
+  ports        String[]
+  appId        String?
+  lastSeenAt   DateTime
+  createdAt    DateTime @default(now())
+  server       Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, dockerId])
+  @@index([serverId])
+}
+
+model AgentCommand {
+  id         String        @id @default(cuid())
+  orgId      String
+  serverId   String
+  type       String
+  params     Json
+  status     CommandStatus @default(QUEUED)
+  actorType  ActorType
+  actorId    String?
+  error      String?
+  output     Json?
+  queuedAt   DateTime      @default(now())
+  sentAt     DateTime?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  durationMs Int?
+  server     Server        @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId, queuedAt])
+  @@index([orgId, queuedAt])
+}
